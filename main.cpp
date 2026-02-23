@@ -21,11 +21,91 @@
 // ---- END VEXCODE CONFIGURED DEVICES ----
 
 #include "vex.h"
-
+#include "robot-config.cpp"
 using namespace vex;
 
 // A global instance of competition
 competition Competition;
+
+
+void turnToHeadingPID(double targetHeading){
+//tuning values//
+double kp = 0.8;
+double ki = 0.003;
+double kd = 0.5;
+
+double error = 0;
+double lasterror = 0;
+double integral = 0;
+
+int smallTime = 0;
+int largeTime = 0;
+
+while(true){
+
+double Current = Inertial10.heading();
+
+
+//choose quickest route
+error = targetHeading - Current;
+if(error>180) error -=360;
+if(error<-180) error +=360;
+
+//settle 
+
+if(fabs(error)<2)
+smallTime +=10;
+else
+smallTime = 0;
+
+if(fabs(error)>2)
+largeTime +=10;
+else
+largeTime = 0;
+
+
+if(smallTime>150 || largeTime >600)
+break;
+
+
+
+//pid math//
+
+integral +=error;
+double derivative = error = lasterror;
+lasterror = error;
+
+
+double Power = (kp* error)  + (ki* integral)  + (kd* derivative);
+
+
+if(Power> 100) Power = 100;
+if(Power< -100) Power = -100;
+
+LeftDriveSmart.spin(forward, Power, pct);
+RightDriveSmart.spin(reverse, Power,pct);
+
+wait(10,msec);
+}
+LeftDriveSmart.stop();
+RightDriveSmart.stop();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool toggleA;
+
 
 // define your global instances of motors and other devices here
 
@@ -43,6 +123,9 @@ competition Competition;
 void pre_auton(void) {
   // Initializing Robot Configuration. DO NOT REMOVE!
   vexcodeInit();
+
+
+Inertial10.setHeading(0,deg);
 
   // All activities that occur before the competition starts
   // Example: clearing encoders, setting servo positions, ...
@@ -74,10 +157,14 @@ DigitalOutA.set(true);
 
 
 
+
 Drivetrain.drive(forward);
 wait(1,sec);
 Drivetrain.stop();
 
+
+
+turnToHeadingPID(90);
 
 
 
@@ -128,6 +215,17 @@ if(Controller1.ButtonUp.pressing()){
 DigitalOutA.set(false);
 }
 else(DigitalOutA.set(true));
+
+
+
+
+
+if(Controller1.ButtonY.pressing()){
+toggleA = !toggleA;
+DigitalOutA.set(toggleA);
+while(Controller1.ButtonY.pressing())
+wait(20,msec);
+}
 
 
 
